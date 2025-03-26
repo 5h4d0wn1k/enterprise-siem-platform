@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block title %}Alerts - Enterprise SIEM Platform{% endblock %}
+
+{% block page_title %}Security Alerts{% endblock %}
+
+{% block content %}
+<!-- Search and Filter Controls -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-filter"></i> Alert Filters
+            </div>
+            <div class="card-body">
+                <form id="alertFilterForm" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="sourceFilter" class="form-label">Source</label>
+                        <select class="form-select" id="sourceFilter">
+                            <option value="">All Sources</option>
+                            <!-- Sources will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="severityFilter" class="form-label">Severity</label>
+                        <select class="form-select" id="severityFilter">
+                            <option value="">All Severities</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="dateRangeFilter" class="form-label">Date Range</label>
+                        <select class="form-select" id="dateRangeFilter">
+                            <option value="last_hour">Last Hour</option>
+                            <option value="last_day" selected>Last 24 Hours</option>
+                            <option value="last_week">Last 7 Days</option>
+                            <option value="last_month">Last 30 Days</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button type="button" class="btn btn-primary" onclick="applyFilters()"><i class="fas fa-search"></i> Apply Filters</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetFilters()"><i class="fas fa-undo"></i> Reset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alerts List -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-exclamation-triangle"></i> Alerts
+                    <span class="badge bg-primary ms-2" id="alertCount">0</span>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportAlerts()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush" id="alertsList">
+                    <!-- Alerts will be inserted here -->
+                </div>
+                <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                    <nav aria-label="Alert pagination">
+                        <ul class="pagination pagination-sm mb-0" id="pagination">
+                            <!-- Pagination links will be inserted here -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Detail Modal -->
+<div class="modal fade" id="alertDetailModal" tabindex="-1" aria-labelledby="alertDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alertDetailModalLabel">Alert Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert" id="modal-alert-severity" role="alert">
+                    <h4 class="alert-heading" id="modal-alert-title">Alert Title</h4>
+                    <p id="modal-alert-message">Alert message</p>
+                    <hr>
+                    <p class="mb-0"><strong>Source:</strong> <span id="modal-alert-source"></span></p>
+                    <p class="mb-0"><strong>Generated:</strong> <span id="modal-alert-timestamp"></span></p>
+                </div>
+                
+                <h5>Related Events</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Source</th>
+                                <th>Severity</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-related-events">
+                            <!-- Related events will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="modal-action-button">View All Related Events</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Global variables
+    let allAlerts = [];
+    let filteredAlerts = [];
+    let currentPage = 1;
+    let pageSize = 10;
+    
+    // Function to format timestamps
+    function formatTimestamp(timestamp) {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        return date.toLocaleString();
+    }
+
+    // Function to get severity badge
+    function getSeverityBadge(severity) {
+        const badgeClass = {
+            'critical': 'bg-danger',
+            'high': 'bg-warning text-dark',
+            'medium': 'bg-info text-dark',
+            'low': 'bg-primary'
+        }[severity] || 'bg-secondary';
+        
+        return `<span class="badge ${badgeClass}">${severity.toUpperCase()}</span>`;
+    }
+
+    // Function to get alert background class
+    function getAlertClass(severity) {
+        return {
+            'critical': 'alert-danger',
+            'high': 'alert-warning',
+            'medium': 'alert-info',
+            'low': 'alert-primary'
+        }[severity] || 'alert-secondary';
+    }
+
+    // Function to load all alerts
+    function loadAlerts() {
+        fetch('/api/alerts?limit=1000')
+            .then(response => response.json())
+            .then(alerts => {
+                allAlerts = alerts;
+                populateFilters(alerts);
+                applyFilters();
+            })
+            .catch(error => console.error('Error loading alerts:', error));
+    }
+
+    // Function to populate filter dropdowns
+    function populateFilters(alerts) {
+        // Get unique sources
+        const sources = [...new Set(alerts.map(alert => alert.source))];
+        const sourceSelect = document.getElementById('sourceFilter');
+        sourceSelect.innerHTML = '<option value="">All Sources</option>';
+        sources.forEach(source => {
+            const option = document.createElement('option');
+            option.value = source;
+            option.textContent = source;
+            sourceSelect.appendChild(option);
+        });
+    }
+
+    // Function to apply filters
+    function applyFilters() {
+        const sourceFilter = document.getElementById('sourceFilter').value;
+        const severityFilter = document.getElementById('severityFilter').value;
+        const dateRangeFilter = document.getElementById('dateRangeFilter').value;
+        
+        // Filter alerts
+        filteredAlerts = allAlerts.filter(alert => {
+            // Apply source filter
+            if (sourceFilter && alert.source !== sourceFilter) {
+                return false;
+            }
+            
+            // Apply severity filter
+            if (severityFilter && alert.severity !== severityFilter) {
+                return false;
+            }
+            
+            // Apply date range filter
+            if (dateRangeFilter) {
+                const alertDate = new Date(alert.timestamp);
+                const now = new Date();
+                
+                switch(dateRangeFilter) {
+                    case 'last_hour':
+                        if (alertDate < new Date(now - 60 * 60 * 1000)) {
+                            return false;
+                        }
+                        break;
+                    case 'last_day':
+                        if (alertDate < new Date(now - 24 * 60 * 60 * 1000)) {
+                            return false;
+                        }
+                        break;
+                    case 'last_week':
+                        if (alertDate < new Date(now - 7 * 24 * 60 * 60 * 1000)) {
+                            return false;
+                        }
+                        break;
+                    case 'last_month':
+                        if (alertDate < new Date(now - 30 * 24 * 60 * 60 * 1000)) {
+                            return false;
+                        }
+                        break;
+                }
+            }
+            
+            return true;
+        });
+        
+        // Sort by timestamp (newest first)
+        filteredAlerts.sort((a, b) => {
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        });
+        
+        // Reset to first page and display
+        currentPage = 1;
+        displayAlerts();
+    }
+
+    // Function to reset filters
+    function resetFilters() {
+        document.getElementById('sourceFilter').value = '';
+        document.getElementById('severityFilter').value = '';
+        document.getElementById('dateRangeFilter').value = 'last_day';
+        
+        applyFilters();
+    }
+
+    // Function to display paginated alerts
+    function displayAlerts() {
+        const alertsList = document.getElementById('alertsList');
+        alertsList.innerHTML = '';
+        
+        // Calculate pagination
+        const totalPages = Math.ceil(filteredAlerts.length / pageSize);
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, filteredAlerts.length);
+        
+        // Display alerts for current page
+        const pageAlerts = filteredAlerts.slice(startIndex, endIndex);
+        
+        if (pageAlerts.length === 0) {
+            alertsList.innerHTML = '<div class="list-group-item text-center text-muted">No alerts found matching the filters</div>';
+        } else {
+            pageAlerts.forEach(alert => {
+                const alertItem = document.createElement('a');
+                alertItem.href = '#';
+                alertItem.className = 'list-group-item list-group-item-action';
+                alertItem.onclick = function(e) {
+                    e.preventDefault();
+                    viewAlertDetails(alert.id);
+                };
+                
+                alertItem.innerHTML = `
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">${getSeverityBadge(alert.severity)} ${alert.title || 'Alert'}</h5>
+                        <small>${formatTimestamp(alert.timestamp)}</small>
+                    </div>
+                    <p class="mb-1">${alert.message}</p>
+                    <div class="d-flex justify-content-between">
+                        <small class="text-muted">Source: ${alert.source}</small>
+                        <small class="text-muted">${alert.events ? alert.events.length : 0} related events</small>
+                    </div>
+                `;
+                
+                alertsList.appendChild(alertItem);
+            });
+        }
+        
+        // Update pagination controls
+        updatePagination(totalPages);
+        
+        // Update alert count
+        document.getElementById('alertCount').textContent = filteredAlerts.length;
+    }
+
+    // Function to update pagination controls
+    function updatePagination(totalPages) {
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+        
+        if (totalPages <= 1) {
+            return;
+        }
+        
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        `;
+        pagination.appendChild(prevLi);
+        
+        // Page numbers
+        const maxPages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
+        let endPage = Math.min(totalPages, startPage + maxPages - 1);
+        
+        if (endPage - startPage + 1 < maxPages) {
+            startPage = Math.max(1, endPage - maxPages + 1);
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const pageLi = document.createElement('li');
+            pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            pageLi.innerHTML = `
+                <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
+            `;
+            pagination.appendChild(pageLi);
+        }
+        
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        `;
+        pagination.appendChild(nextLi);
+    }
+
+    // Function to change page
+    function changePage(page) {
+        const totalPages = Math.ceil(filteredAlerts.length / pageSize);
+        if (page < 1 || page > totalPages) {
+            return;
+        }
+        
+        currentPage = page;
+        displayAlerts();
+    }
+
+    // Function to view alert details
+    function viewAlertDetails(alertId) {
+        // Find the alert
+        const alert = allAlerts.find(a => a.id === alertId);
+        if (!alert) return;
+        
+        // Update modal content
+        document.getElementById('modal-alert-title').textContent = alert.title || 'Alert';
+        document.getElementById('modal-alert-message').textContent = alert.message;
+        document.getElementById('modal-alert-source').textContent = alert.source;
+        document.getElementById('modal-alert-timestamp').textContent = formatTimestamp(alert.timestamp);
+        
+        // Set severity class
+        const alertElement = document.getElementById('modal-alert-severity');
+        alertElement.className = `alert ${getAlertClass(alert.severity)}`;
+        
+        // Populate related events
+        const relatedEventsTable = document.getElementById('modal-related-events');
+        relatedEventsTable.innerHTML = '';
+        
+        if (alert.events && alert.events.length > 0) {
+            alert.events.forEach(event => {
+                const row = document.createElement('tr');
+                row.className = getSeverityTableClass(event.severity);
+                row.innerHTML = `
+                    <td>${formatTimestamp(event.timestamp)}</td>
+                    <td>${event.source}</td>
+                    <td>${getSeverityBadge(event.severity)}</td>
+                    <td>${event.message.substring(0, 100)}${event.message.length > 100 ? '...' : ''}</td>
+                `;
+                relatedEventsTable.appendChild(row);
+            });
+            
+            // Enable action button
+            document.getElementById('modal-action-button').disabled = false;
+            document.getElementById('modal-action-button').onclick = function() {
+                window.location.href = '/events?alert_id=' + alertId;
+            };
+        } else {
+            relatedEventsTable.innerHTML = '<tr><td colspan="4" class="text-center">No related events</td></tr>';
+            document.getElementById('modal-action-button').disabled = true;
+        }
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('alertDetailModal'));
+        modal.show();
+    }
+
+    // Function to export alerts
+    function exportAlerts() {
+        // Create CSV content
+        let csv = 'Timestamp,Title,Source,Severity,Message\n';
+        
+        filteredAlerts.forEach(alert => {
+            // Escape commas and quotes in fields
+            const timestamp = formatTimestamp(alert.timestamp);
+            const title = (alert.title || 'Alert').replace(/"/g, '""');
+            const source = alert.source.replace(/"/g, '""');
+            const severity = alert.severity;
+            const message = alert.message.replace(/"/g, '""');
+            
+            csv += `"${timestamp}","${title}","${source}","${severity}","${message}"\n`;
+        });
+        
+        // Create download link
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.setAttribute('href', url);
+        a.setAttribute('download', `siem_alerts_export_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`);
+        a.click();
+    }
+
+    // Function to get table row class based on severity
+    function getSeverityTableClass(severity) {
+        return {
+            'critical': 'table-danger',
+            'high': 'table-warning',
+            'medium': 'table-info',
+            'low': 'table-primary'
+        }[severity] || 'table-light';
+    }
+
+    // Define page refresh function
+    function pageRefresh() {
+        loadAlerts();
+    }
+
+    // Function to export data
+    function exportPageData() {
+        exportAlerts();
+    }
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAlerts();
+        
+        // Check for URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const timeRange = urlParams.get('time_range');
+        if (timeRange) {
+            document.getElementById('dateRangeFilter').value = timeRange;
+        }
+    });
+</script>
+{% endblock %} 

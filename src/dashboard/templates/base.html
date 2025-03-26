@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Enterprise SIEM Platform{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --info-color: #3498db;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .sidebar {
+            background-color: var(--primary-color);
+            color: white;
+            min-height: 100vh;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-menu {
+            padding: 0;
+            list-style: none;
+        }
+        
+        .sidebar-menu-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background-color 0.2s;
+        }
+        
+        .sidebar-menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-menu-item.active {
+            background-color: var(--secondary-color);
+            border-left: 4px solid var(--accent-color);
+        }
+        
+        .sidebar-menu-item a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+        
+        .sidebar-menu-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        
+        .navbar {
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 10px 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            font-weight: bold;
+        }
+        
+        .badge-info {
+            background-color: var(--info-color);
+            color: white;
+        }
+        
+        .badge-warning {
+            background-color: var(--warning-color);
+            color: white;
+        }
+        
+        .badge-danger {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        
+        .badge-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+        
+        .submenu {
+            padding-left: 30px;
+            display: none;
+        }
+        
+        .submenu-visible {
+            display: block;
+        }
+        
+        .submenu-item {
+            padding: 8px 0;
+        }
+        
+        .dropdown-toggle::after {
+            display: none;
+        }
+        
+        .dropdown-toggle .fa-chevron-down {
+            transition: transform 0.3s;
+        }
+        
+        .dropdown-toggle.collapsed .fa-chevron-down {
+            transform: rotate(-90deg);
+        }
+        
+        /* Custom severity colors */
+        .severity-info {
+            color: var(--info-color);
+        }
+        
+        .severity-low {
+            color: var(--success-color);
+        }
+        
+        .severity-medium {
+            color: var(--warning-color);
+        }
+        
+        .severity-high {
+            color: var(--accent-color);
+        }
+        
+        .severity-critical {
+            color: darkred;
+        }
+        
+        /* Loading spinner */
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .spinner-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h4>Enterprise SIEM</h4>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-menu-item {% if active_page == 'dashboard' %}active{% endif %}">
+                <a href="{{ url_for('index') }}">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+            </li>
+            <li class="sidebar-menu-item {% if active_page == 'events' %}active{% endif %}">
+                <a href="{{ url_for('events') }}">
+                    <i class="fas fa-list-alt"></i> Events
+                </a>
+            </li>
+            <li class="sidebar-menu-item {% if active_page == 'alerts' %}active{% endif %}">
+                <a href="{{ url_for('alerts') }}">
+                    <i class="fas fa-bell"></i> Alerts 
+                    <span class="badge bg-danger ms-2" id="alert-count">0</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item {% if active_page == 'reports' %}active{% endif %}">
+                <a href="{{ url_for('reports') }}">
+                    <i class="fas fa-chart-bar"></i> Reports
+                </a>
+            </li>
+            <li class="sidebar-menu-item">
+                <a href="#configSubmenu" class="dropdown-toggle collapsed" data-bs-toggle="collapse">
+                    <i class="fas fa-cog"></i> Configuration
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+            </li>
+            <div class="collapse {% if active_page in ['collectors', 'analyzers', 'alerters', 'dashboard'] %}show{% endif %}" id="configSubmenu">
+                <ul class="submenu">
+                    <li class="submenu-item {% if active_page == 'collectors' %}active{% endif %}">
+                        <a href="{{ url_for('config', section='collectors') }}">
+                            <i class="fas fa-database"></i> Collectors
+                        </a>
+                    </li>
+                    <li class="submenu-item {% if active_page == 'analyzers' %}active{% endif %}">
+                        <a href="{{ url_for('config', section='analyzers') }}">
+                            <i class="fas fa-microscope"></i> Analyzers
+                        </a>
+                    </li>
+                    <li class="submenu-item {% if active_page == 'alerters' %}active{% endif %}">
+                        <a href="{{ url_for('config', section='alerters') }}">
+                            <i class="fas fa-exclamation-circle"></i> Alerters
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <li class="sidebar-menu-item">
+                <a href="#systemSubmenu" class="dropdown-toggle collapsed" data-bs-toggle="collapse">
+                    <i class="fas fa-server"></i> System
+                    <i class="fas fa-chevron-down ms-auto"></i>
+                </a>
+            </li>
+            <div class="collapse {% if active_page in ['status', 'logs'] %}show{% endif %}" id="systemSubmenu">
+                <ul class="submenu">
+                    <li class="submenu-item {% if active_page == 'status' %}active{% endif %}">
+                        <a href="{{ url_for('system_status_page') }}">
+                            <i class="fas fa-heartbeat"></i> Status
+                        </a>
+                    </li>
+                    <li class="submenu-item {% if active_page == 'logs' %}active{% endif %}">
+                        <a href="{{ url_for('system_logs') }}">
+                            <i class="fas fa-clipboard-list"></i> Logs
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="content">
+        <nav class="navbar">
+            <div class="container-fluid">
+                <span class="navbar-brand">{% block page_title %}Dashboard{% endblock %}</span>
+                <div class="d-flex">
+                    <span class="me-3" id="current-time"></span>
+                    <span class="ms-3" id="system-uptime">Uptime: 00:00:00</span>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container-fluid">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    
+    <!-- Loading Spinner -->
+    <div class="spinner-overlay" id="loading-spinner" style="display: none;">
+        <div class="spinner-container">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div>Loading data...</div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    
+    <!-- Common scripts -->
+    <script>
+        // Format date and time
+        function formatDateTime(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+        
+        // Format time difference
+        function formatTimeDiff(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+        
+        // Show/hide loading spinner
+        function showLoading() {
+            document.getElementById('loading-spinner').style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading-spinner').style.display = 'none';
+        }
+        
+        // Update current time
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString();
+        }
+        
+        // Update system uptime
+        function updateUptime() {
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(data => {
+                    const uptime = data.system_uptime;
+                    document.getElementById('system-uptime').textContent = `Uptime: ${formatTimeDiff(uptime)}`;
+                })
+                .catch(error => console.error('Error fetching uptime:', error));
+        }
+        
+        // Update alert count
+        function updateAlertCount() {
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('alert-count').textContent = data.alert_count;
+                })
+                .catch(error => console.error('Error fetching alert count:', error));
+        }
+        
+        // For collapsible submenus
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update current time
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+            
+            // Update uptime
+            updateUptime();
+            setInterval(updateUptime, 10000);
+            
+            // Update alert count
+            updateAlertCount();
+            setInterval(updateAlertCount, 5000);
+        });
+        
+        // Helper for formatting severity
+        function getSeverityBadge(severity) {
+            const severityMap = {
+                'info': '<span class="badge bg-info">Info</span>',
+                'low': '<span class="badge bg-success">Low</span>',
+                'medium': '<span class="badge bg-warning">Medium</span>',
+                'high': '<span class="badge bg-danger">High</span>',
+                'critical': '<span class="badge bg-dark text-danger">Critical</span>'
+            };
+            
+            return severityMap[severity.toLowerCase()] || '<span class="badge bg-secondary">Unknown</span>';
+        }
+        
+        // Helper for CSV export
+        function exportToCsv(filename, rows) {
+            const processRow = row => {
+                let finalVal = '';
+                for (let j = 0; j < row.length; j++) {
+                    let value = row[j] === null ? '' : row[j].toString();
+                    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                        value = '"' + value.replace(/"/g, '""') + '"';
+                    }
+                    if (j > 0) finalVal += ',';
+                    finalVal += value;
+                }
+                return finalVal + '\n';
+            };
+            
+            let csvFile = '';
+            for (let i = 0; i < rows.length; i++) {
+                csvFile += processRow(rows[i]);
+            }
+            
+            const blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
+            if (navigator.msSaveBlob) { // IE 10+
+                navigator.msSaveBlob(blob, filename);
+            } else {
+                const link = document.createElement("a");
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", filename);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

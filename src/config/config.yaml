@@ -1,0 +1,114 @@
+# Enterprise SIEM Platform Configuration
+
+# General settings
+general:
+  log_level: INFO  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_file: data/logs/siem.log
+  data_dir: data
+  temp_dir: temp
+
+# Log Collectors
+collectors:
+  # Windows Event Collector
+  windows_event:
+    enable: false  # Set to true to enable
+    channels:
+      - 'Security'
+      - 'System'
+      - 'Application'
+    event_ids:  # Optional: specific event IDs to collect, empty for all
+      - 4624  # Successful login
+      - 4625  # Failed login
+      - 4634  # Logout
+      - 4648  # Explicit credential login
+      - 4672  # Admin login
+      - 7036  # Service started/stopped
+      - 7045  # Service installed
+    batch_size: 100
+    poll_interval: 10  # seconds
+
+  # File Collector (for log files)
+  file:
+    enable: false  # Set to true to enable
+    paths:
+      - 'data/logs/sample_logs.log'
+    pattern: '.*'  # Regex pattern to match lines
+    follow: true
+    encoding: 'utf-8'
+    poll_interval: 5  # seconds
+
+# Event Analyzers
+analyzers:
+  # Threshold Analyzer
+  threshold:
+    enable: true
+    rules:
+      - name: "Multiple Failed Logins"
+        description: "Detects multiple failed login attempts for a single user"
+        event_type: "authentication"
+        field: "username"
+        condition: "count"
+        threshold: 5
+        time_window: 300  # seconds
+        severity: "HIGH"
+        
+      - name: "Suspicious File Access"
+        description: "Detects access to sensitive files"
+        event_type: "file_access"
+        field: "path"
+        condition: "match"
+        patterns:
+          - "/etc/passwd"
+          - "/etc/shadow"
+          - "C:\\Windows\\System32\\config\\*"
+        severity: "MEDIUM"
+        
+      - name: "Unusual Network Activity"
+        description: "Detects connections to suspicious IP addresses"
+        event_type: "network"
+        field: "destination_ip"
+        condition: "match"
+        patterns:
+          - "10.0.0.0/8"  # Adjust with actual suspicious IP ranges
+        severity: "MEDIUM"
+
+# Alert Handlers
+alerters:
+  # Console Alerter (output to console)
+  console:
+    enable: true
+    min_severity: "LOW"  # Minimum severity to alert on (LOW, MEDIUM, HIGH, CRITICAL)
+
+  # Email Alerter
+  email:
+    enable: false
+    server: "smtp.example.com"
+    port: 587
+    use_tls: true
+    username: "alerts@example.com"
+    password: "your-password-here"
+    from_address: "alerts@example.com"
+    to_addresses:
+      - "admin@example.com"
+    min_severity: "MEDIUM"  # Only send emails for MEDIUM and above
+
+# Dashboard Configuration
+dashboard:
+  enable: true
+  host: "127.0.0.1"
+  port: 5000
+  debug: false
+  secret_key: "change-this-to-a-secure-random-key"
+  session_lifetime: 3600  # seconds
+  theme: "default"
+  title: "Enterprise SIEM Dashboard"
+  refresh_interval: 30  # seconds
+  chart_limit: 100  # Number of events to show in charts
+  table_limit: 50   # Number of events to show in tables
+
+# Test data generation (for development/testing)
+test_data:
+  enable: true
+  event_rate: 10  # events per minute
+  include_alertable_events: true
+  alertable_rate: 0.1  # 10% of events will be alertable 

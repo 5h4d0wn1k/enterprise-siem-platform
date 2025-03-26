@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ title }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1 class="mb-3">Security Dashboard</h1>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column text-center">
+                <h5 class="card-title text-primary">Events</h5>
+                <div class="mt-3 mb-2">
+                    <i class="fas fa-list-alt fa-3x text-primary mb-3"></i>
+                </div>
+                <h2 class="mb-0" id="event-count">{{ system_status.events_processed }}</h2>
+                <p class="text-muted">Total events processed</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column text-center">
+                <h5 class="card-title text-warning">Alerts</h5>
+                <div class="mt-3 mb-2">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                </div>
+                <h2 class="mb-0" id="alert-count">{{ system_status.alerts_generated }}</h2>
+                <p class="text-muted">Total alerts generated</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column text-center">
+                <h5 class="card-title text-success">Sources</h5>
+                <div class="mt-3 mb-2">
+                    <i class="fas fa-database fa-3x text-success mb-3"></i>
+                </div>
+                <h2 class="mb-0" id="source-count">{{ event_stats.counts_by_source|length }}</h2>
+                <p class="text-muted">Active log sources</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column text-center">
+                <h5 class="card-title text-danger">Critical Alerts</h5>
+                <div class="mt-3 mb-2">
+                    <i class="fas fa-radiation fa-3x text-danger mb-3"></i>
+                </div>
+                <h2 class="mb-0" id="critical-count">{{ alert_stats.counts_by_severity.get('CRITICAL', 0) }}</h2>
+                <p class="text-muted">Requiring attention</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts & Recent Data -->
+<div class="row mb-4">
+    <!-- Events Timeline Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Events Timeline</h5>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary active" data-timespan="hour">Hour</button>
+                    <button class="btn btn-outline-secondary" data-timespan="day">Day</button>
+                    <button class="btn btn-outline-secondary" data-timespan="week">Week</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="events-timeline-chart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Events by Severity Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Events by Severity</h5>
+            </div>
+            <div class="card-body">
+                <div id="severity-chart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Event Types Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Event Types</h5>
+            </div>
+            <div class="card-body">
+                <div id="event-types-chart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Event Sources Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Event Sources</h5>
+            </div>
+            <div class="card-body">
+                <div id="sources-chart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Alerts -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Alerts</h5>
+                <a href="{{ url_for('alerts_page') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="recent-alerts-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Severity</th>
+                                <th>Title</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="text-center">Loading alerts...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Status -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">System Status</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0" id="system-status-table">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Status</th>
+                                <th>Type</th>
+                                <th>Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="text-center">Loading components...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Initialize charts
+    let eventsTimelineChart = null;
+    let severityChart = null;
+    let eventTypesChart = null;
+    let sourcesChart = null;
+    
+    // Load dashboard data
+    function loadDashboardData() {
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                // Update summary statistics
+                document.getElementById('event-count').textContent = data.system_status.events_processed;
+                document.getElementById('alert-count').textContent = data.system_status.alerts_generated;
+                document.getElementById('source-count').textContent = Object.keys(data.event_stats.counts_by_source).length;
+                document.getElementById('critical-count').textContent = data.alert_stats.counts_by_severity.CRITICAL || 0;
+                
+                // Update charts
+                updateEventsTimelineChart(data.event_stats.events_over_time);
+                updateSeverityChart(data.event_stats.counts_by_severity);
+                updateEventTypesChart(data.event_stats.counts_by_type);
+                updateSourcesChart(data.event_stats.counts_by_source);
+                
+                // Update system status table
+                updateSystemStatusTable(data.system_status);
+            })
+            .catch(error => console.error('Error fetching dashboard data:', error));
+        
+        // Load recent alerts separately
+        fetch('/api/alerts?limit=5')
+            .then(response => response.json())
+            .then(data => {
+                updateRecentAlertsTable(data.alerts);
+            })
+            .catch(error => console.error('Error fetching alerts:', error));
+    }
+    
+    // Update events timeline chart
+    function updateEventsTimelineChart(eventsOverTime) {
+        const times = eventsOverTime.map(point => point.time);
+        const counts = eventsOverTime.map(point => point.count);
+        
+        const data = [{
+            x: times,
+            y: counts,
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: {
+                color: '#1a73e8',
+                width: 3
+            },
+            marker: {
+                color: '#1a73e8',
+                size: 8
+            }
+        }];
+        
+        const layout = {
+            margin: { t: 10, l: 50, r: 30, b: 50 },
+            hovermode: 'closest',
+            xaxis: {
+                title: 'Time',
+                showgrid: false,
+                zeroline: false
+            },
+            yaxis: {
+                title: 'Event Count',
+                showgrid: true,
+                zeroline: false
+            }
+        };
+        
+        if (eventsTimelineChart) {
+            Plotly.update('events-timeline-chart', data, layout);
+        } else {
+            eventsTimelineChart = Plotly.newPlot('events-timeline-chart', data, layout, {responsive: true});
+        }
+    }
+    
+    // Update severity chart
+    function updateSeverityChart(countsBySeverity) {
+        // Define the order we want severities to appear
+        const severityOrder = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+        
+        // Colors for each severity
+        const colors = {
+            'LOW': '#8bc34a',
+            'MEDIUM': '#ffc107',
+            'HIGH': '#ff9800',
+            'CRITICAL': '#f44336'
+        };
+        
+        // Filter and sort the severities
+        const labels = [];
+        const values = [];
+        const colors_array = [];
+        
+        severityOrder.forEach(severity => {
+            if (countsBySeverity[severity]) {
+                labels.push(severity);
+                values.push(countsBySeverity[severity]);
+                colors_array.push(colors[severity]);
+            }
+        });
+        
+        const data = [{
+            labels: labels,
+            values: values,
+            type: 'pie',
+            hole: 0.4,
+            marker: {
+                colors: colors_array
+            },
+            textinfo: 'label+percent',
+            insidetextorientation: 'radial'
+        }];
+        
+        const layout = {
+            margin: { t: 10, l: 10, r: 10, b: 10 },
+            showlegend: false
+        };
+        
+        if (severityChart) {
+            Plotly.update('severity-chart', data, layout);
+        } else {
+            severityChart = Plotly.newPlot('severity-chart', data, layout, {responsive: true});
+        }
+    }
+    
+    // Update event types chart
+    function updateEventTypesChart(countsByType) {
+        const types = Object.keys(countsByType);
+        const counts = Object.values(countsByType);
+        
+        // Sort by count (descending)
+        const combined = types.map((type, i) => ({type, count: counts[i]}));
+        combined.sort((a, b) => b.count - a.count);
+        
+        // Limit to top 10
+        const top10 = combined.slice(0, 10);
+        
+        const data = [{
+            x: top10.map(item => item.count),
+            y: top10.map(item => item.type),
+            type: 'bar',
+            orientation: 'h',
+            marker: {
+                color: '#1967d2'
+            }
+        }];
+        
+        const layout = {
+            margin: { t: 10, l: 120, r: 30, b: 50 },
+            xaxis: {
+                title: 'Count'
+            },
+            yaxis: {
+                title: '',
+                automargin: true
+            }
+        };
+        
+        if (eventTypesChart) {
+            Plotly.update('event-types-chart', data, layout);
+        } else {
+            eventTypesChart = Plotly.newPlot('event-types-chart', data, layout, {responsive: true});
+        }
+    }
+    
+    // Update sources chart
+    function updateSourcesChart(countsBySource) {
+        const sources = Object.keys(countsBySource);
+        const counts = Object.values(countsBySource);
+        
+        // Sort by count (descending)
+        const combined = sources.map((source, i) => ({source, count: counts[i]}));
+        combined.sort((a, b) => b.count - a.count);
+        
+        // Limit to top 10
+        const top10 = combined.slice(0, 10);
+        
+        const data = [{
+            x: top10.map(item => item.count),
+            y: top10.map(item => item.source),
+            type: 'bar',
+            orientation: 'h',
+            marker: {
+                color: '#0d904f'
+            }
+        }];
+        
+        const layout = {
+            margin: { t: 10, l: 120, r: 30, b: 50 },
+            xaxis: {
+                title: 'Count'
+            },
+            yaxis: {
+                title: '',
+                automargin: true
+            }
+        };
+        
+        if (sourcesChart) {
+            Plotly.update('sources-chart', data, layout);
+        } else {
+            sourcesChart = Plotly.newPlot('sources-chart', data, layout, {responsive: true});
+        }
+    }
+    
+    // Update recent alerts table
+    function updateRecentAlertsTable(alerts) {
+        const tableBody = document.querySelector('#recent-alerts-table tbody');
+        if (!alerts || alerts.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No alerts found</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        alerts.forEach(alert => {
+            html += `
+                <tr>
+                    <td>${formatTimestamp(alert.timestamp)}</td>
+                    <td>${getSeverityBadge(alert.severity)}</td>
+                    <td>${alert.title}</td>
+                    <td>${alert.source}</td>
+                </tr>
+            `;
+        });
+        
+        tableBody.innerHTML = html;
+    }
+    
+    // Update system status table
+    function updateSystemStatusTable(systemStatus) {
+        const tableBody = document.querySelector('#system-status-table tbody');
+        if (!systemStatus) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No status information available</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        
+        // Add collectors
+        systemStatus.collectors.forEach(collector => {
+            html += `
+                <tr>
+                    <td>${collector.name}</td>
+                    <td>${getStatusIcon(collector.status)} ${collector.status}</td>
+                    <td>Collector</td>
+                    <td>${formatTimestamp(collector.last_updated)}</td>
+                </tr>
+            `;
+        });
+        
+        // Add analyzers
+        systemStatus.analyzers.forEach(analyzer => {
+            html += `
+                <tr>
+                    <td>${analyzer.name}</td>
+                    <td>${getStatusIcon(analyzer.status)} ${analyzer.status}</td>
+                    <td>Analyzer</td>
+                    <td>${formatTimestamp(analyzer.last_updated)}</td>
+                </tr>
+            `;
+        });
+        
+        // Add alerters
+        systemStatus.alerters.forEach(alerter => {
+            html += `
+                <tr>
+                    <td>${alerter.name}</td>
+                    <td>${getStatusIcon(alerter.status)} ${alerter.status}</td>
+                    <td>Alerter</td>
+                    <td>${formatTimestamp(alerter.last_updated)}</td>
+                </tr>
+            `;
+        });
+        
+        if (html === '') {
+            html = '<tr><td colspan="4" class="text-center">No components registered</td></tr>';
+        }
+        
+        tableBody.innerHTML = html;
+    }
+    
+    // Timespan filter for events timeline
+    document.querySelectorAll('[data-timespan]').forEach(button => {
+        button.addEventListener('click', function() {
+            // Update active button
+            document.querySelectorAll('[data-timespan]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // Update chart based on timespan
+            // This would typically filter the data based on the timespan
+            // For now we'll just reload the data
+            loadDashboardData();
+        });
+    });
+    
+    // Load initial data
+    loadDashboardData();
+    
+    // Override the refresh function
+    refreshPage = function() {
+        loadDashboardData();
+    };
+</script>
+{% endblock %} 

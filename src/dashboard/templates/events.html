@@ -1,0 +1,456 @@
+{% extends "base.html" %}
+
+{% block title %}Events - Enterprise SIEM Platform{% endblock %}
+
+{% block page_title %}Security Events{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Search & Filter</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="sourceFilter" class="form-label">Source</label>
+                        <select class="form-select" id="sourceFilter">
+                            <option value="all" selected>All Sources</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="severityFilter" class="form-label">Severity</label>
+                        <select class="form-select" id="severityFilter">
+                            <option value="all" selected>All Severities</option>
+                            <option value="info">Info</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="timeRangeFilter" class="form-label">Time Range</label>
+                        <select class="form-select" id="timeRangeFilter">
+                            <option value="all" selected>All Time</option>
+                            <option value="1h">Last Hour</option>
+                            <option value="24h">Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d">Last 30 Days</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="searchInput" class="form-label">Search</label>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search in messages...">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12 d-flex justify-content-end">
+                        <button class="btn btn-primary" onclick="applyFilters()">
+                            <i class="fas fa-filter me-2"></i>Apply Filters
+                        </button>
+                        <button class="btn btn-outline-secondary ms-2" onclick="resetFilters()">
+                            <i class="fas fa-undo me-2"></i>Reset
+                        </button>
+                        <button class="btn btn-outline-success ms-2" onclick="exportFilteredEvents()">
+                            <i class="fas fa-download me-2"></i>Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0 d-inline-block">Event List</h5>
+                    <span class="badge bg-primary ms-2" id="event-count-badge">0</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshEvents()">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="events-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 10%">Severity</th>
+                                <th style="width: 40%">Message</th>
+                                <th style="width: 15%">Source</th>
+                                <th style="width: 15%">Type</th>
+                                <th style="width: 20%">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-table-body">
+                            <tr>
+                                <td colspan="5" class="text-center">Loading events...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        Showing <span id="showing-start">0</span> to <span id="showing-end">0</span> of <span id="total-events">0</span> events
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary me-2" id="prev-page" onclick="prevPage()">Previous</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="next-page" onclick="nextPage()">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Event Detail Modal -->
+<div class="modal fade" id="eventDetailModal" tabindex="-1" aria-labelledby="eventDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventDetailModalLabel">Event Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="fw-bold">Event ID:</label>
+                            <div id="event-detail-id"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">Source:</label>
+                            <div id="event-detail-source"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">Severity:</label>
+                            <div id="event-detail-severity"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="fw-bold">Timestamp:</label>
+                            <div id="event-detail-timestamp"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">Type:</label>
+                            <div id="event-detail-type"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="fw-bold">Message:</label>
+                    <div id="event-detail-message"></div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="fw-bold">Raw Data:</label>
+                    <pre id="event-detail-raw-data" class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global variables for pagination
+    let currentPage = 1;
+    const pageSize = 20;
+    let filteredEvents = [];
+    
+    // Initialize the events page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initial data load
+        loadEvents();
+        
+        // Set up event stream for real-time updates
+        setupEventStream();
+        
+        // Set up search input handler
+        document.getElementById('searchInput').addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                applyFilters();
+            }
+        });
+    });
+    
+    // Load events from API
+    function loadEvents() {
+        showLoading();
+        
+        fetch('/api/events?limit=1000')
+            .then(response => response.json())
+            .then(events => {
+                // Store all events
+                filteredEvents = events;
+                
+                // Populate source dropdown
+                populateSourceDropdown(events);
+                
+                // Apply initial filters
+                applyFilters();
+                
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error loading events:', error);
+                hideLoading();
+            });
+    }
+    
+    // Populate source dropdown
+    function populateSourceDropdown(events) {
+        const sourceFilter = document.getElementById('sourceFilter');
+        
+        // Get unique sources
+        const sources = [...new Set(events.map(event => event.source))].sort();
+        
+        // Clear existing options except the first one
+        sourceFilter.innerHTML = '<option value="all">All Sources</option>';
+        
+        // Add source options
+        sources.forEach(source => {
+            const option = document.createElement('option');
+            option.value = source;
+            option.textContent = source;
+            sourceFilter.appendChild(option);
+        });
+    }
+    
+    // Apply filters
+    function applyFilters() {
+        const sourceValue = document.getElementById('sourceFilter').value;
+        const severityValue = document.getElementById('severityFilter').value;
+        const timeRangeValue = document.getElementById('timeRangeFilter').value;
+        const searchValue = document.getElementById('searchInput').value.toLowerCase();
+        
+        // Filter events
+        let filtered = filteredEvents;
+        
+        // Filter by source
+        if (sourceValue !== 'all') {
+            filtered = filtered.filter(event => event.source === sourceValue);
+        }
+        
+        // Filter by severity
+        if (severityValue !== 'all') {
+            filtered = filtered.filter(event => event.severity === severityValue);
+        }
+        
+        // Filter by time range
+        if (timeRangeValue !== 'all') {
+            const now = new Date();
+            let timeLimit;
+            
+            switch (timeRangeValue) {
+                case '1h':
+                    timeLimit = new Date(now - 60 * 60 * 1000);
+                    break;
+                case '24h':
+                    timeLimit = new Date(now - 24 * 60 * 60 * 1000);
+                    break;
+                case '7d':
+                    timeLimit = new Date(now - 7 * 24 * 60 * 60 * 1000);
+                    break;
+                case '30d':
+                    timeLimit = new Date(now - 30 * 24 * 60 * 60 * 1000);
+                    break;
+            }
+            
+            if (timeLimit) {
+                filtered = filtered.filter(event => new Date(event.timestamp) > timeLimit);
+            }
+        }
+        
+        // Filter by search text
+        if (searchValue) {
+            filtered = filtered.filter(event => 
+                event.message.toLowerCase().includes(searchValue) ||
+                event.source.toLowerCase().includes(searchValue) ||
+                (event.event_type && event.event_type.toLowerCase().includes(searchValue))
+            );
+        }
+        
+        // Update filtered events and reset to first page
+        filteredEvents = filtered;
+        currentPage = 1;
+        
+        // Update UI
+        displayEvents();
+        updatePagination();
+    }
+    
+    // Reset filters
+    function resetFilters() {
+        document.getElementById('sourceFilter').value = 'all';
+        document.getElementById('severityFilter').value = 'all';
+        document.getElementById('timeRangeFilter').value = 'all';
+        document.getElementById('searchInput').value = '';
+        
+        // Reload events
+        loadEvents();
+    }
+    
+    // Display events
+    function displayEvents() {
+        const tableBody = document.getElementById('events-table-body');
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, filteredEvents.length);
+        
+        // Update event count
+        document.getElementById('event-count-badge').textContent = filteredEvents.length;
+        
+        if (filteredEvents.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No events found matching the criteria</td></tr>';
+            return;
+        }
+        
+        tableBody.innerHTML = '';
+        
+        // Display events for current page
+        for (let i = startIndex; i < endIndex; i++) {
+            const event = filteredEvents[i];
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+                <td>${getSeverityBadge(event.severity)}</td>
+                <td>${event.message}</td>
+                <td>${event.source}</td>
+                <td>${event.event_type || 'N/A'}</td>
+                <td>${formatDateTime(event.timestamp)}</td>
+            `;
+            
+            // Add click handler for event details
+            row.style.cursor = 'pointer';
+            row.onclick = function() {
+                showEventDetails(event);
+            };
+            
+            tableBody.appendChild(row);
+        }
+    }
+    
+    // Show event details
+    function showEventDetails(event) {
+        document.getElementById('event-detail-id').textContent = event.id;
+        document.getElementById('event-detail-source').textContent = event.source;
+        document.getElementById('event-detail-severity').innerHTML = getSeverityBadge(event.severity);
+        document.getElementById('event-detail-timestamp').textContent = formatDateTime(event.timestamp);
+        document.getElementById('event-detail-type').textContent = event.event_type || 'N/A';
+        document.getElementById('event-detail-message').textContent = event.message;
+        
+        // Format raw data as JSON
+        const rawData = event.raw_data ? JSON.stringify(event.raw_data, null, 2) : 'No raw data available';
+        document.getElementById('event-detail-raw-data').textContent = rawData;
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
+        modal.show();
+    }
+    
+    // Update pagination
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredEvents.length / pageSize);
+        const startIndex = (currentPage - 1) * pageSize + 1;
+        const endIndex = Math.min(startIndex + pageSize - 1, filteredEvents.length);
+        
+        document.getElementById('showing-start').textContent = filteredEvents.length > 0 ? startIndex : 0;
+        document.getElementById('showing-end').textContent = endIndex;
+        document.getElementById('total-events').textContent = filteredEvents.length;
+        
+        // Enable/disable pagination buttons
+        document.getElementById('prev-page').disabled = currentPage === 1;
+        document.getElementById('next-page').disabled = currentPage >= totalPages;
+    }
+    
+    // Previous page
+    function prevPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            displayEvents();
+            updatePagination();
+        }
+    }
+    
+    // Next page
+    function nextPage() {
+        const totalPages = Math.ceil(filteredEvents.length / pageSize);
+        if (currentPage < totalPages) {
+            currentPage++;
+            displayEvents();
+            updatePagination();
+        }
+    }
+    
+    // Refresh events
+    function refreshEvents() {
+        showLoading();
+        loadEvents();
+    }
+    
+    // Export filtered events to CSV
+    function exportFilteredEvents() {
+        if (filteredEvents.length === 0) {
+            alert('No events to export');
+            return;
+        }
+        
+        // Prepare CSV header row
+        const headers = ['ID', 'Timestamp', 'Source', 'Severity', 'Type', 'Message'];
+        
+        // Prepare data rows
+        const rows = [headers];
+        
+        filteredEvents.forEach(event => {
+            rows.push([
+                event.id,
+                event.timestamp,
+                event.source,
+                event.severity,
+                event.event_type || 'N/A',
+                event.message
+            ]);
+        });
+        
+        // Export to CSV
+        const filename = `security_events_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        exportToCsv(filename, rows);
+    }
+    
+    // Setup event stream for real-time updates
+    function setupEventStream() {
+        const eventSource = new EventSource('/api/events/stream');
+        
+        eventSource.onmessage = function(event) {
+            const eventData = JSON.parse(event.data);
+            
+            // Add to the beginning of our events array
+            filteredEvents.unshift(eventData);
+            
+            // Apply filters again
+            applyFilters();
+        };
+        
+        eventSource.onerror = function() {
+            console.error('EventSource failed, reconnecting in 5 seconds');
+            eventSource.close();
+            setTimeout(setupEventStream, 5000);
+        };
+    }
+</script>
+{% endblock %} 
