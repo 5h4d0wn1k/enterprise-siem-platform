@@ -1,0 +1,72 @@
+# Offensive Security Configuration for Enterprise SIEM Platform
+
+# Master switch for all offensive security features
+enabled: true
+
+# Port Scanner Configuration
+port_scanner:
+  enabled: true
+  scan_interval: 3600  # Scan every hour (in seconds)
+  targets:
+    - 192.168.1.1     # Example: Default gateway
+    - 192.168.1.10    # Example: Server
+    - 192.168.1.0/24  # Example: Entire subnet (use with caution)
+  port_ranges:
+    - [1, 1024]       # Well-known ports
+    - [8000, 8999]    # Common web service ports
+  scan_timeout: 2.0   # Timeout per port in seconds
+  concurrency: 100    # Number of concurrent port scans
+
+# Brute Force Detector
+brute_force:
+  enabled: true
+  check_interval: 10   # Check for brute force attempts every 10 seconds
+  time_window: 300     # Look for patterns within 5 minutes
+  threshold: 5         # Alert after 5 failed attempts
+  alert_cooldown: 300  # Don't alert about the same source/user for 5 minutes
+  
+  # Simulation for testing
+  simulate:
+    enabled: false     # Enable/disable simulation
+    interval: 7200     # Run simulation every 2 hours
+    targets:
+      - 127.0.0.1      # Local machine for testing
+    usernames:
+      - admin
+      - root
+      - user
+    services:
+      - ssh
+      - rdp
+
+# Vulnerability Scanner
+vulnerability_scanner:
+  enabled: true
+  scan_interval: 86400  # Daily scans
+  scanner_type: simulate  # Options: simulate, openvas, nessus
+  
+  # OpenVAS configuration
+  openvas:
+    host: localhost
+    port: 9390
+    username: admin
+    password: admin
+  
+  # Nessus configuration
+  nessus:
+    url: https://localhost:8834
+    access_key: ""
+    secret_key: ""
+  
+  # Simulation configuration
+  simulate:
+    targets:
+      - 192.168.1.1
+      - 192.168.1.10
+    num_findings: [5, 15]  # Min and max number of findings
+    severity_distribution:
+      critical: 0.05  # 5% critical findings
+      high: 0.15      # 15% high findings
+      medium: 0.30    # 30% medium findings
+      low: 0.40       # 40% low findings
+      info: 0.10      # 10% informational findings 

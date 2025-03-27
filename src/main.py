@@ -18,12 +18,14 @@ from src.analyzers.threshold_analyzer import ThresholdAnalyzer
 from src.alerting.console_alerter import ConsoleAlerter
 from src.alerting.email_alerter import EmailAlerter
 from src.dashboard.app import start_dashboard
+from src.offensive.manager import OffensiveSecurityManager
 
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='Enterprise SIEM Platform')
     parser.add_argument('--config', help='Path to configuration file')
     parser.add_argument('--no-dashboard', action='store_true', help='Disable the web dashboard')
+    parser.add_argument('--no-offensive', action='store_true', help='Disable offensive security features')
     return parser.parse_args()
 
 def main():
@@ -68,6 +70,12 @@ def main():
         threshold_analyzer = ThresholdAnalyzer(config.get('analyzers', {}).get('threshold', {}))
         analyzers.append(('Threshold Analyzer', threshold_analyzer, threshold_analyzer.run_analyzer))
     
+    # Initialize offensive security manager
+    offensive_manager = None
+    if not args.no_offensive and config.get('offensive', {}).get('enabled', False):
+        logging.info("Initializing Offensive Security Manager")
+        offensive_manager = OffensiveSecurityManager(config.get('offensive', {}))
+    
     # Initialize alerters
     alerters = []
     
@@ -100,6 +108,12 @@ def main():
         thread.start()
         threads.append((name, thread))
     
+    # Start offensive security components
+    if offensive_manager:
+        logging.info("Starting Offensive Security Components")
+        offensive_threads = offensive_manager.start(event_queue)
+        threads.extend(offensive_threads)
+    
     # Start alerters
     for name, alerter, run_func in alerters:
         logging.info(f"Starting {name}")
@@ -123,6 +137,37 @@ def main():
         )
         dashboard_thread.start()
         threads.append(('Dashboard', dashboard_thread))
+    
+    # Create event processor for offensive security
+    def process_events():
+        while True:
+            try:
+                # Get event from queue without removing it
+                event = event_queue.queue[0]
+                
+                # Process event with offensive security manager
+                if offensive_manager:
+                    additional_events = offensive_manager.process_event(event)
+                    if additional_events:
+                        # Add additional events to queue
+                        for additional_event in additional_events:
+                            event_queue.put(additional_event)
+                
+                # Sleep briefly to avoid high CPU usage
+                time.sleep(0.1)
+                
+            except IndexError:
+                # Queue is empty, wait for more events
+                time.sleep(0.5)
+            except Exception as e:
+                logging.error(f"Error processing events: {str(e)}")
+                time.sleep(1)
+    
+    # Start event processor if offensive security is enabled
+    if offensive_manager:
+        processor_thread = threading.Thread(target=process_events, daemon=True)
+        processor_thread.start()
+        threads.append(('Event Processor', processor_thread))
     
     # Main loop - keep the application running and monitor threads
     try:

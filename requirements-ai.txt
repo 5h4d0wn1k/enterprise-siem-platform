@@ -1,0 +1,85 @@
+# AI Module Requirements for Enterprise SIEM Platform
+
+# Core Machine Learning Dependencies
+numpy==1.24.3
+pandas==1.5.3
+scikit-learn==1.2.2
+scipy==1.10.1
+
+# Deep Learning
+tensorflow==2.12.0
+torch==2.0.1
+transformers==4.29.2
+torchvision==0.15.2
+
+# NLP Libraries
+nltk==3.8.1
+spacy==3.5.3
+gensim==4.3.1
+
+# Graph Neural Networks
+networkx==3.1
+dgl==1.1.0
+stellargraph==1.2.1
+
+# Anomaly Detection Specialized Libraries
+pyod==1.0.9
+alibi-detect==0.10.4
+
+# Feature Engineering and Processing
+feature-engine==1.5.2
+category-encoders==2.6.0
+
+# ML Pipeline Management
+mlflow==2.3.1
+kubeflow==1.7.0
+
+# Evaluation and Explanation
+shap==0.41.0
+lime==0.2.0.1
+alibi==0.9.0
+
+# Visualization
+matplotlib==3.7.1
+seaborn==0.12.2
+plotly==5.14.1
+dash==2.10.0
+
+# Data Storage and Retrieval
+elasticsearch==8.7.0
+pymongo==4.3.3
+redis==4.5.5
+
+# Distributed Computing
+dask==2023.5.0
+distributed==2023.5.0
+ray==2.3.1
+
+# Cloud ML Integration
+boto3==1.26.148  # For AWS
+google-cloud-storage==2.9.0  # For GCP
+azure-storage-blob==12.16.0  # For Azure
+
+# API and Serving
+fastapi==0.95.2
+uvicorn==0.22.0
+gunicorn==20.1.0
+
+# Experiment Tracking and Optimization
+optuna==3.2.0
+ax-platform==0.3.3
+hyperopt==0.2.7
+
+# Testing and Validation
+pytest==7.3.1
+hypothesis==6.75.3
+
+# Security
+cryptography==40.0.2
+pyjwt==2.7.0
+
+# Utilities
+tqdm==4.65.0
+joblib==1.2.0
+pyyaml==6.0.1
+python-dateutil==2.8.2 

@@ -27,7 +27,7 @@ The Enterprise SIEM Platform is a modular and extensible Security Information an
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/enterprise-siem-platform.git
+   git clone https://github.com/5h4d0wn1k/enterprise-siem-platform.git
    cd enterprise-siem-platform
    ```
 
@@ -40,7 +40,7 @@ The Enterprise SIEM Platform is a modular and extensible Security Information an
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/enterprise-siem-platform.git
+   git clone https://github.com/5h4d0wn1k/enterprise-siem-platform.git
    cd enterprise-siem-platform
    ```
 

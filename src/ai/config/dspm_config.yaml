@@ -1,0 +1,160 @@
+# Enterprise SIEM Platform - Data Security Posture Management (DSPM) Configuration
+
+# Global DSPM settings
+enabled: true
+scan_interval: 24  # Hours between scheduled scans
+
+# Scanner configurations
+scanners:
+  file_scanner:
+    enabled: true
+    max_file_size: 10485760  # 10MB
+    excluded_dirs: 
+      - .git
+      - node_modules
+      - venv
+      - __pycache__
+      - .vscode
+      - .idea
+    excluded_files:
+      - "*.log"
+      - "*.lock"
+      - "*.bin"
+    included_extensions: []  # Empty means all supported types
+    excluded_extensions:
+      - .pyc
+      - .pyd
+      - .pyo
+      - .so
+      - .dll
+      - .exe
+    max_line_length: 10000
+    max_workers: 4
+    custom_patterns:
+      - name: "jwt_token"
+        regex: "eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}"
+        description: "JSON Web Token"
+        masked_format: "JWT****"
+        compliance_frameworks:
+          - "GDPR"
+
+  database_scanner:
+    enabled: false
+    class: "src.ai.dspm.database_scanner.DatabaseScanner"
+    connection_timeout: 30
+    max_rows_per_table: 1000
+    supported_databases:
+      - mysql
+      - postgresql
+      - sqlite
+    excluded_tables:
+      - migrations
+      - schema_version
+    excluded_columns:
+      - created_at
+      - updated_at
+      - id
+
+# Scan targets
+targets:
+  - name: "source_code"
+    path: "./src"
+    scanner: "file_scanner"
+    recursive: true
+    schedule: "daily"
+    enabled: true
+    
+  - name: "configuration_files"
+    path: "./config"
+    scanner: "file_scanner"
+    recursive: true
+    schedule: "hourly"
+    enabled: true
+    
+  - name: "scripts"
+    path: "./scripts"
+    scanner: "file_scanner"
+    recursive: true
+    schedule: "daily"
+    enabled: true
+    
+  - name: "docs"
+    path: "./docs"
+    scanner: "file_scanner"
+    recursive: true
+    schedule: "weekly"
+    enabled: true
+
+# Sensitive data types to scan for
+sensitive_data_types:
+  - credit_card
+  - ssn
+  - email
+  - password
+  - api_key
+  - address
+  - phone_number
+  - ip_address
+  - jwt_token
+
+# Confidence threshold (0.0 to 1.0)
+min_confidence: 0.8
+
+# Results management
+result_retention: 90  # Days to keep results
+max_findings_per_source: 1000
+
+# Alerting configuration
+alerting:
+  enabled: true
+  min_severity: medium  # Minimum severity level to create an alert (low, medium, high, critical)
+  grouped_alerts: true  # Group multiple findings into a single alert
+  alert_source: "dspm_module"
+  alert_template:
+    title: "DSPM: {count} sensitive data findings in {location}"
+    message: "DSPM scan detected sensitive data.\n\nLocation: {location}\nTypes: {types}\nSeverity: {severity}\n\nPlease review these findings and take appropriate action."
+
+# Integration with other modules
+integration:
+  dashboard:
+    enabled: true
+    update_interval: 60  # Seconds between dashboard updates
+  
+  report:
+    enabled: true
+    schedule: "weekly"
+    format: "pdf"
+    recipients:
+      - "security@example.com"
+
+# Compliance frameworks
+compliance:
+  frameworks:
+    - name: "PCI-DSS"
+      enabled: true
+      requirements:
+        - id: "3.4"
+          description: "Render sensitive authentication data unreadable"
+          data_types:
+            - credit_card
+            - ssn
+    
+    - name: "GDPR"
+      enabled: true
+      requirements:
+        - id: "Article 32"
+          description: "Protection of personal data"
+          data_types:
+            - email
+            - phone_number
+            - address
+            - ip_address
+    
+    - name: "HIPAA"
+      enabled: false
+      requirements:
+        - id: "164.312(a)(1)"
+          description: "Access Control"
+          data_types:
+            - ssn
+            - medical_record_number 

@@ -1,0 +1,86 @@
+# Enterprise SIEM Platform - AI Module Configuration
+
+# AI model configuration
+models:
+  # Anomaly detection models
+  anomaly_detection:
+    enabled: true
+    model_type: isolation_forest
+    model_path: models/anomaly/isolation_forest_model.pkl
+    threshold: 0.85  # Anomaly score threshold (higher means fewer alerts)
+    features:
+      - login_attempt_count
+      - session_duration
+      - bytes_transferred
+      - connection_count
+      - authentication_failures
+      - time_since_last_login
+      - process_count
+      - cpu_usage
+      - memory_usage
+    batch_size: 100
+    
+  behavior_analysis:
+    enabled: false
+    model_type: sequence_model
+    model_path: models/behavior/sequence_model.pkl
+    window_size: 10  # Events to analyze together
+    threshold: 0.8
+  
+  # Data classification models
+  data_classification:
+    enabled: false
+    model_type: text_classifier
+    model_path: models/classification/data_classifier_model.pkl
+    categories:
+      - PII
+      - Financial
+      - Healthcare
+      - Intellectual Property
+      - Credentials
+      - Public
+    confidence_threshold: 0.7
+
+# Processing configuration
+processing:
+  batch_size: 100  # Events to process in one batch
+  processing_interval: 5  # Seconds between processing batches
+  max_queue_size: 10000  # Maximum events in queue
+  worker_threads: 1  # Number of worker threads
+  
+# Integration with core SIEM
+integration:
+  alert_on_anomaly: true  # Generate alerts for anomalies
+  min_anomaly_score: 0.8  # Minimum score to generate an alert
+  store_ai_results: true  # Store results for dashboard
+  result_ttl: 30  # Days to keep AI results
+
+# Data retention and model updating
+maintenance:
+  model_update_interval: 7  # Days between model retraining
+  training_data_retention: 90  # Days to keep training data
+  min_training_samples: 10000  # Minimum samples for training
+  max_training_samples: 100000  # Maximum samples for training
+
+# Logging and monitoring
+logging:
+  level: info  # Logging level (debug, info, warning, error)
+  log_file: logs/ai_module.log
+  metrics:
+    enabled: true
+    interval: 60  # Seconds between metrics logging
+    
+# DSPM (Data Security Posture Management) settings
+dspm:
+  enabled: false
+  scan_interval: 24  # Hours between scans
+  sensitive_data_types:
+    - credit_card
+    - ssn
+    - email
+    - password
+    - api_key
+    - address
+    - phone_number
+  min_confidence: 0.8  # Minimum confidence for sensitive data detection
+  max_results_per_file: 1000  # Maximum results to store per file 
