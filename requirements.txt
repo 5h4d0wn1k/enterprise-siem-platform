@@ -40,7 +40,7 @@ paramiko==3.2.0    # For SSH connectivity
 python-nmap==0.7.1 # For port scanning
 netifaces==0.11.0  # For network interface information
 pyOpenSSL==23.2.0  # For SSL/TLS verification
-cryptography==41.0.3 # For cryptographic operations
+cryptography==42.0.4 # Updated from 41.0.3 (high severity)
 
 # Testing and development
-pytest==7.3.1 
+pytest==7.3.1

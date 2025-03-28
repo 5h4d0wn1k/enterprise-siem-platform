@@ -1,16 +1,16 @@
-# AI Module Requirements for Enterprise SIEM Platform 
-# Core Machine Learning Dependencies 
+# AI Module Requirements for Enterprise SIEM Platform
 
+# Core Machine Learning Dependencies
 numpy==1.24.3
 pandas==1.5.3
 scikit-learn==1.2.2
 scipy==1.10.1
 
 # Deep Learning
-tensorflow==2.15.0
-torch==2.1.2
-transformers==4.37.2
-torchvision==0.16.2
+tensorflow==2.12.0
+torch==2.0.1
+transformers==4.29.2
+torchvision==0.15.2
 
 # NLP Libraries
 nltk==3.8.1
@@ -19,7 +19,7 @@ gensim==4.3.1
 
 # Graph Neural Networks
 networkx==3.1
-dgl==2.1.0
+dgl==1.1.0
 stellargraph==1.2.1
 
 # Anomaly Detection Specialized Libraries
@@ -31,7 +31,7 @@ feature-engine==1.5.2
 category-encoders==2.6.0
 
 # ML Pipeline Management
-mlflow==2.10.0
+mlflow==2.3.1
 kubeflow==1.7.0
 
 # Evaluation and Explanation
@@ -51,19 +51,19 @@ pymongo==4.3.3
 redis==4.5.5
 
 # Distributed Computing
-dask==2023.12.1
-distributed==2023.12.1
-ray==2.9.0
+dask==2023.5.0
+distributed==2023.5.0
+ray==2.3.1
 
 # Cloud ML Integration
-boto3==1.26.148
-google-cloud-storage==2.9.0
-azure-storage-blob==12.16.0
+boto3==1.26.148  # For AWS
+google-cloud-storage==2.9.0  # For GCP
+azure-storage-blob==12.16.0  # For Azure
 
 # API and Serving
 fastapi==0.95.2
 uvicorn==0.22.0
-gunicorn==21.2.0
+gunicorn==20.1.0
 
 # Experiment Tracking and Optimization
 optuna==3.2.0
@@ -82,4 +82,4 @@ pyjwt==2.7.0
 tqdm==4.65.0
 joblib==1.2.0
 pyyaml==6.0.1
-python-dateutil==2.8.2
+python-dateutil==2.8.2 
