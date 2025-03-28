@@ -31,7 +31,7 @@ feature-engine==1.5.2
 category-encoders==2.6.0
 
 # ML Pipeline Management
-mlflow==2.10.0
+mlflow==2.11.0
 kubeflow==1.7.0
 
 # Evaluation and Explanation
